@@ -8,8 +8,9 @@
  * - Weather effects (rain, snow, fog, sun, moon, stars)
  * - Day/Night transitions with house dimming
  * - Sunrise/Sunset effects
+ * - Support for multiple EVs (up to 2)
  * 
- * @version 1.2.6
+ * @version 1.2.7
  * @author BangerTech
  */
 
@@ -33,6 +34,7 @@ class PrismEnergyCard extends HTMLElement {
       battery_power: "",
       home_consumption: "",
       ev_power: "",
+      ev2_power: "",
       autarky: "",
       image: "/local/community/Prism-Dashboard/images/prism-energy-home.png",
       max_solar_power: 10000,
@@ -67,6 +69,9 @@ class PrismEnergyCard extends HTMLElement {
       ev_pill_top: 72,
       ev_pill_left: 22,
       ev_pill_scale: 1.0,
+      ev2_pill_top: 72,
+      ev2_pill_left: 35,
+      ev2_pill_scale: 1.0,
       // Custom Pills (optional)
       custom_pill_1_entity: "",
       custom_pill_1_icon: "mdi:thermometer",
@@ -168,6 +173,11 @@ class PrismEnergyCard extends HTMLElement {
         {
           name: "ev_power",
           label: "EV Charging Power (optional)",
+          selector: { entity: { domain: "sensor" } }
+        },
+        {
+          name: "ev2_power",
+          label: "Second EV Charging Power (optional)",
           selector: { entity: { domain: "sensor" } }
         },
         {
@@ -365,17 +375,38 @@ class PrismEnergyCard extends HTMLElement {
               schema: [
                 {
                   name: "ev_pill_top",
-                  label: "Ev pill top",
+                  label: "EV1 pill top",
                   selector: { number: { min: 0, max: 100, step: 1, mode: "box" } }
                 },
                 {
                   name: "ev_pill_left",
-                  label: "Ev pill left",
+                  label: "EV1 pill left",
                   selector: { number: { min: 0, max: 100, step: 1, mode: "box" } }
                 },
                 {
                   name: "ev_pill_scale",
-                  label: "Ev pill size",
+                  label: "EV1 pill size",
+                  selector: { number: { min: 0.5, max: 2.0, step: 0.1, mode: "box" } }
+                }
+              ]
+            },
+            {
+              type: "grid",
+              name: "",
+              schema: [
+                {
+                  name: "ev2_pill_top",
+                  label: "EV2 pill top",
+                  selector: { number: { min: 0, max: 100, step: 1, mode: "box" } }
+                },
+                {
+                  name: "ev2_pill_left",
+                  label: "EV2 pill left",
+                  selector: { number: { min: 0, max: 100, step: 1, mode: "box" } }
+                },
+                {
+                  name: "ev2_pill_scale",
+                  label: "EV2 pill size",
                   selector: { number: { min: 0.5, max: 2.0, step: 0.1, mode: "box" } }
                 }
               ]
@@ -563,6 +594,7 @@ class PrismEnergyCard extends HTMLElement {
       battery_power: config.battery_power || "",
       home_consumption: config.home_consumption || "",
       ev_power: config.ev_power || "",
+      ev2_power: config.ev2_power || "",
       autarky: config.autarky || "",
       image: config.image || "/local/community/Prism-Dashboard/images/prism-energy-home.png",
       show_details: config.show_details !== false,
@@ -599,6 +631,9 @@ class PrismEnergyCard extends HTMLElement {
       ev_pill_top: config.ev_pill_top ?? 72,
       ev_pill_left: config.ev_pill_left ?? 22,
       ev_pill_scale: config.ev_pill_scale ?? 1.0,
+      ev2_pill_top: config.ev2_pill_top ?? 72,
+      ev2_pill_left: config.ev2_pill_left ?? 35,
+      ev2_pill_scale: config.ev2_pill_scale ?? 1.0,
       // Custom Pills
       custom_pill_1_entity: config.custom_pill_1_entity || "",
       custom_pill_1_icon: config.custom_pill_1_icon || "mdi:thermometer",
@@ -694,6 +729,7 @@ class PrismEnergyCard extends HTMLElement {
     const batteryPower = this._getStateInWatts(this._config.battery_power, 0);
     const homeConsumption = this._getStateInWatts(this._config.home_consumption, 0);
     const evPower = this._getStateInWatts(this._config.ev_power, 0);
+    const ev2Power = this._getStateInWatts(this._config.ev2_power, 0);
     const autarky = this._getState(this._config.autarky, 0); // Autarky is percentage
 
     // Determine states for labels
@@ -703,6 +739,7 @@ class PrismEnergyCard extends HTMLElement {
     const isBatteryCharging = batteryPower < -50;
     const isBatteryDischarging = batteryPower > 50;
     const isEvCharging = evPower > 50;
+    const isEv2Charging = ev2Power > 50;
     const hasBattery = !!this._config.battery_soc;
 
     // Update pill values
@@ -734,6 +771,12 @@ class PrismEnergyCard extends HTMLElement {
       this._updateElement('.pill-ev .pill-val', isEvCharging ? this._formatPower(evPower) : this._t('idle'));
       this._updatePillIconClass('.pill-ev .pill-icon', isEvCharging, 'bg-ev');
       this._updatePillIconClass('.pill-ev .pill-icon ha-icon', isEvCharging, 'color-ev');
+    }
+
+    if (this._config.ev2_power) {
+      this._updateElement('.pill-ev2 .pill-val', isEv2Charging ? this._formatPower(ev2Power) : this._t('idle'));
+      this._updatePillIconClass('.pill-ev2 .pill-icon', isEv2Charging, 'bg-ev');
+      this._updatePillIconClass('.pill-ev2 .pill-icon ha-icon', isEv2Charging, 'color-ev');
     }
     
     if (this._config.autarky) {
@@ -959,6 +1002,7 @@ class PrismEnergyCard extends HTMLElement {
     const batteryPower = this._getStateInWatts(this._config.battery_power, 0);
     const homeConsumption = this._getStateInWatts(this._config.home_consumption, 0);
     const evPower = this._getStateInWatts(this._config.ev_power, 0);
+    const ev2Power = this._getStateInWatts(this._config.ev2_power, 0);
 
     const isSolarActive = solarPower > 50;
     const isGridImport = gridPower > 50;
@@ -966,7 +1010,9 @@ class PrismEnergyCard extends HTMLElement {
     const isBatteryCharging = batteryPower < -50;
     const isBatteryDischarging = batteryPower > 50;
     const isEvCharging = evPower > 50;
+    const isEv2Charging = ev2Power > 50;
     const hasEV = !!this._config.ev_power;
+    const hasEV2 = !!this._config.ev2_power;
     const hasBattery = !!this._config.battery_soc;
 
     // Show/hide flow groups based on state
@@ -981,6 +1027,11 @@ class PrismEnergyCard extends HTMLElement {
     if (hasEV) {
       // EV is treated as sub-load of home - only one line from home to EV
       this._setFlowVisibility('flow-home-ev', isEvCharging);
+    }
+
+    if (hasEV2) {
+      // EV2 is treated as sub-load of home - only one line from home to EV2
+      this._setFlowVisibility('flow-home-ev2', isEv2Charging);
     }
   }
 
@@ -1795,9 +1846,11 @@ class PrismEnergyCard extends HTMLElement {
     const batteryPower = this._getStateInWatts(this._config.battery_power, 0);
     const homeConsumption = this._getStateInWatts(this._config.home_consumption, 0);
     const evPower = this._getStateInWatts(this._config.ev_power, 0);
+    const ev2Power = this._getStateInWatts(this._config.ev2_power, 0);
     const autarky = this._getState(this._config.autarky, 0); // Autarky is percentage
     
     const hasEV = !!this._config.ev_power;
+    const hasEV2 = !!this._config.ev2_power;
     const hasAutarky = !!this._config.autarky;
     const hasBattery = !!this._config.battery_soc;
     const houseImg = this._config.image;
@@ -1814,6 +1867,7 @@ class PrismEnergyCard extends HTMLElement {
     const isBatteryCharging = batteryPower < -50;
     const isBatteryDischarging = batteryPower > 50;
     const isEvCharging = evPower > 50;
+    const isEv2Charging = ev2Power > 50;
 
     // Battery icon based on SOC
     let batteryIcon = "mdi:battery";
@@ -1832,7 +1886,8 @@ class PrismEnergyCard extends HTMLElement {
       grid: { x: this._config.grid_pill_left, y: this._config.grid_pill_top, scale: this._config.grid_pill_scale },
       home: { x: this._config.home_pill_left, y: this._config.home_pill_top, scale: this._config.home_pill_scale },
       battery: { x: this._config.battery_pill_left, y: this._config.battery_pill_top, scale: this._config.battery_pill_scale },
-      ev: { x: this._config.ev_pill_left, y: this._config.ev_pill_top, scale: this._config.ev_pill_scale }
+      ev: { x: this._config.ev_pill_left, y: this._config.ev_pill_top, scale: this._config.ev_pill_scale },
+      ev2: { x: this._config.ev2_pill_left, y: this._config.ev2_pill_top, scale: this._config.ev2_pill_scale }
     };
 
     // Helper to calculate control point for smooth curves
@@ -1856,8 +1911,9 @@ class PrismEnergyCard extends HTMLElement {
       batteryToHome: `M ${pillPos.battery.x} ${pillPos.battery.y} Q ${midPoint(pillPos.battery, pillPos.home).x} ${midPoint(pillPos.battery, pillPos.home).y} ${pillPos.home.x} ${pillPos.home.y}`,
       batteryToGrid: `M ${pillPos.battery.x} ${pillPos.battery.y} Q ${midPoint(pillPos.battery, pillPos.grid).x} ${midPoint(pillPos.battery, pillPos.grid).y} ${pillPos.grid.x} ${pillPos.grid.y}`,
       
-      // EV flow from home (EV is sub-load of home)
-      homeToEv: `M ${pillPos.home.x} ${pillPos.home.y} Q ${midPoint(pillPos.home, pillPos.ev).x} ${midPoint(pillPos.home, pillPos.ev).y} ${pillPos.ev.x} ${pillPos.ev.y}`
+      // EV flows from home (EV is sub-load of home)
+      homeToEv: `M ${pillPos.home.x} ${pillPos.home.y} Q ${midPoint(pillPos.home, pillPos.ev).x} ${midPoint(pillPos.home, pillPos.ev).y} ${pillPos.ev.x} ${pillPos.ev.y}`,
+      homeToEv2: `M ${pillPos.home.x} ${pillPos.home.y} Q ${midPoint(pillPos.home, pillPos.ev2).x} ${midPoint(pillPos.home, pillPos.ev2).y} ${pillPos.ev2.x} ${pillPos.ev2.y}`
     };
 
     // Colors
@@ -2705,6 +2761,7 @@ class PrismEnergyCard extends HTMLElement {
 
             <!-- EV Flow (sub-load of home) -->
             ${hasEV ? this._renderFlow(paths.homeToEv, colors.ev, isEvCharging, false, 'flow-home-ev') : ''}
+            ${hasEV2 ? this._renderFlow(paths.homeToEv2, colors.ev, isEv2Charging, false, 'flow-home-ev2') : ''}
           </svg>
 
           <!-- Solar Pill (Top - Roof) - Clickable for history -->
@@ -2761,7 +2818,20 @@ class PrismEnergyCard extends HTMLElement {
             </div>
             <div class="pill-content">
               <span class="pill-val">${isEvCharging ? this._formatPower(evPower) : this._t('idle')}</span>
-              <span class="pill-label">EV</span>
+              <span class="pill-label">EV1</span>
+            </div>
+          </div>
+          ` : ''}
+
+          <!-- EV2 Pill (Bottom - Second Carport) - Clickable for history -->
+          ${hasEV2 ? `
+          <div class="pill pill-ev2" style="top: ${pillPos.ev2.y}%; left: ${pillPos.ev2.x}%; --pill-scale: ${pillPos.ev2.scale};" data-entity="${this._config.ev2_power}">
+            <div class="pill-icon ${isEv2Charging ? 'bg-ev' : 'bg-inactive'}">
+              <ha-icon icon="mdi:car-electric" class="${isEv2Charging ? 'color-ev' : 'color-inactive'}"></ha-icon>
+            </div>
+            <div class="pill-content">
+              <span class="pill-val">${isEv2Charging ? this._formatPower(ev2Power) : this._t('idle')}</span>
+              <span class="pill-label">EV2</span>
             </div>
           </div>
           ` : ''}
@@ -2870,9 +2940,9 @@ window.customCards.push({
 });
 
 console.info(
-  `%c PRISM-ENERGY %c v1.2.6 %c Responsive Details Section `,
+  `%c PRISM-ENERGY %c v1.2.7 %c Multi-EV Support `,
   'background: #F59E0B; color: black; font-weight: bold; padding: 2px 6px; border-radius: 4px 0 0 4px;',
   'background: #1e2024; color: white; font-weight: bold; padding: 2px 6px;',
-  'background: #3B82F6; color: white; font-weight: bold; padding: 2px 6px; border-radius: 0 4px 4px 0;'
+  'background: #EC4899; color: white; font-weight: bold; padding: 2px 6px; border-radius: 0 4px 4px 0;'
 );
 
