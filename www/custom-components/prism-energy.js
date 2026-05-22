@@ -2879,18 +2879,40 @@ class PrismEnergyCard extends HTMLElement {
               </div>
               ${hasEV ? `
               <div class="detail-row">
-                <span class="detail-label">E-Auto</span>
+                <span class="detail-label">E-Auto 1</span>
                 <span class="detail-val" style="color: ${isEvCharging ? colors.ev : 'rgba(255,255,255,0.4)'};">${isEvCharging ? this._formatPower(evPower) : this._t('idle')}</span>
+              </div>
+              ` : ''}
+              ${hasEV2 ? `
+              <div class="detail-row">
+                <span class="detail-label">E-Auto 2</span>
+                <span class="detail-val" style="color: ${isEv2Charging ? colors.ev : 'rgba(255,255,0,0.4)'};">${isEv2Charging ? this._formatPower(ev2Power) : this._t('idle')}</span>
               </div>
               ` : ''}
             </div>
             <div class="detail-bar">
-              ${hasEV && isEvCharging ? (() => {
-                const totalConsumption = homeConsumption + evPower;
+              ${(hasEV && isEvCharging) || (hasEV2 && isEv2Charging) ? (() => {
+                let totalConsumption = homeConsumption;
+                let segments = `<div class="detail-fill-segment" style="flex-basis:${homeConsumption}px;background:${colors.home}"></div>`;
+                
+                if (hasEV && isEvCharging) totalConsumption += evPower;
+                if (hasEV2 && isEv2Charging) totalConsumption += ev2Power;
+                
                 const totalPercent = Math.min(100, (totalConsumption / this._config.max_consumption) * 100);
                 const homeWidth = totalPercent * (homeConsumption / totalConsumption);
-                const evWidth = totalPercent * (evPower / totalConsumption);
-                return `<div class="detail-fill-stack"><div class="detail-fill-segment" style="flex-basis:${homeWidth}%;background:${colors.home}"></div><div class="detail-fill-segment" style="flex-basis:${evWidth}%;background:${colors.ev}"></div></div>`;
+                let evWidth = 0;
+                let ev2Width = 0;
+                
+                if (hasEV && isEvCharging) evWidth = totalPercent * (evPower / totalConsumption);
+                if (hasEV2 && isEv2Charging) ev2Width = totalPercent * (ev2Power / totalConsumption);
+                
+                segments = `<div class="detail-fill-stack">`;
+                segments += `<div class="detail-fill-segment" style="flex-basis:${homeWidth}%;background:${colors.home}"></div>`;
+                if (hasEV && isEvCharging) segments += `<div class="detail-fill-segment" style="flex-basis:${evWidth}%;background:${colors.ev}"></div>`;
+                if (hasEV2 && isEv2Charging) segments += `<div class="detail-fill-segment" style="flex-basis:${ev2Width}%;background:${colors.ev}"></div>`;
+                segments += `</div>`;
+                
+                return segments;
               })() : `
               <div class="detail-fill" style="width: ${Math.min(100, (homeConsumption / this._config.max_consumption) * 100)}%; background: ${colors.home};"></div>
               `}
