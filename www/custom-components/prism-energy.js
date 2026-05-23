@@ -34,7 +34,9 @@ class PrismEnergyCard extends HTMLElement {
       battery_power: "",
       home_consumption: "",
       ev_power: "",
+      ev_name: "E-Auto 1",
       ev2_power: "",
+      ev2_name: "E-Auto 2",
       autarky: "",
       image: "/local/community/Prism-Dashboard/images/prism-energy-home.png",
       max_solar_power: 10000,
@@ -176,9 +178,19 @@ class PrismEnergyCard extends HTMLElement {
           selector: { entity: { domain: "sensor" } }
         },
         {
+          name: "ev_name",
+          label: "EV1 Display Name (default: E-Auto 1)",
+          selector: { text: {} }
+        },
+        {
           name: "ev2_power",
           label: "Second EV Charging Power (optional)",
           selector: { entity: { domain: "sensor" } }
+        },
+        {
+          name: "ev2_name",
+          label: "EV2 Display Name (default: E-Auto 2)",
+          selector: { text: {} }
         },
         {
           name: "autarky",
@@ -594,7 +606,9 @@ class PrismEnergyCard extends HTMLElement {
       battery_power: config.battery_power || "",
       home_consumption: config.home_consumption || "",
       ev_power: config.ev_power || "",
+      ev_name: config.ev_name || "E-Auto 1",
       ev2_power: config.ev2_power || "",
+      ev2_name: config.ev2_name || "E-Auto 2",
       autarky: config.autarky || "",
       image: config.image || "/local/community/Prism-Dashboard/images/prism-energy-home.png",
       show_details: config.show_details !== false,
@@ -902,17 +916,21 @@ class PrismEnergyCard extends HTMLElement {
     const batteryPower = this._getStateInWatts(this._config.battery_power, 0);
     const homeConsumption = this._getStateInWatts(this._config.home_consumption, 0);
     const evPower = this._getStateInWatts(this._config.ev_power, 0);
+    const ev2Power = this._getStateInWatts(this._config.ev2_power, 0);
     
     const isGridExport = gridPower < -50;
     const isEvCharging = evPower > 50;
+    const isEv2Charging = ev2Power > 50;
     const hasEV = !!this._config.ev_power;
+    const hasEV2 = !!this._config.ev2_power;
     
     const colors = {
       solar: '#F59E0B',
       grid: '#3B82F6',
       battery: '#10B981',
       home: '#8B5CF6',
-      ev: '#EC4899'
+      ev: '#EC4899',
+      ev2: '#EF4444',
     };
     
     // Update Solar module values if configured
@@ -954,17 +972,38 @@ class PrismEnergyCard extends HTMLElement {
         valEl.style.color = isEvCharging ? colors.ev : 'rgba(255,255,255,0.4)';
       }
     }
+    if (consumptionRows[2] && hasEV2) {
+      const valEl = consumptionRows[2].querySelector('.detail-val');
+      if (valEl) {
+        valEl.textContent = isEv2Charging ? this._formatPower(ev2Power) : this._t('idle');
+        valEl.style.color = isEv2Charging ? colors.ev2 : 'rgba(255,255,255,0.4)';
+      }
+    }
     
     // Update Consumption bar
     const consumptionBar = this.shadowRoot.querySelector('.details-grid .detail-col:nth-child(3) .detail-bar');
     if (consumptionBar) {
-      if (hasEV && isEvCharging) {
-        const totalConsumption = homeConsumption + evPower;
+      if ((hasEV && isEvCharging) || (hasEV2 && isEv2Charging)) {
+        let totalConsumption = homeConsumption;
+        if (hasEV && isEvCharging) totalConsumption += evPower;
+        if (hasEV2 && isEv2Charging) totalConsumption += ev2Power;
+        
         const totalPercent = Math.min(100, (totalConsumption / this._config.max_consumption) * 100);
         const homeWidth = totalPercent * (homeConsumption / totalConsumption);
-        const evWidth = totalPercent * (evPower / totalConsumption);
-        // Use flex-basis and no whitespace between segments
-        consumptionBar.innerHTML = `<div class="detail-fill-stack"><div class="detail-fill-segment" style="flex-basis:${homeWidth}%;background:${colors.home}"></div><div class="detail-fill-segment" style="flex-basis:${evWidth}%;background:${colors.ev}"></div></div>`;
+        let evWidth = 0;
+        let ev2Width = 0;
+        
+        if (hasEV && isEvCharging) evWidth = totalPercent * (evPower / totalConsumption);
+        if (hasEV2 && isEv2Charging) ev2Width = totalPercent * (ev2Power / totalConsumption);
+        
+        // Build stacked bar with all active segments
+        let stackHTML = '<div class="detail-fill-stack">';
+        stackHTML += `<div class="detail-fill-segment" style="flex-basis:${homeWidth}%;background:${colors.home}"></div>`;
+        if (hasEV && isEvCharging) stackHTML += `<div class="detail-fill-segment" style="flex-basis:${evWidth}%;background:${colors.ev}"></div>`;
+        if (hasEV2 && isEv2Charging) stackHTML += `<div class="detail-fill-segment" style="flex-basis:${ev2Width}%;background:${colors.ev2}"></div>`;
+        stackHTML += '</div>';
+        
+        consumptionBar.innerHTML = stackHTML;
       } else {
         consumptionBar.innerHTML = `<div class="detail-fill" style="width: ${Math.min(100, (homeConsumption / this._config.max_consumption) * 100)}%; background: ${colors.home};"></div>`;
       }
@@ -1922,7 +1961,8 @@ class PrismEnergyCard extends HTMLElement {
       grid: '#3B82F6',
       battery: '#10B981',
       home: '#8B5CF6',
-      ev: '#EC4899'
+      ev: '#EC4899',
+      ev2: '#EF4444'
     };
 
     this.shadowRoot.innerHTML = `
@@ -2761,7 +2801,7 @@ class PrismEnergyCard extends HTMLElement {
 
             <!-- EV Flow (sub-load of home) -->
             ${hasEV ? this._renderFlow(paths.homeToEv, colors.ev, isEvCharging, false, 'flow-home-ev') : ''}
-            ${hasEV2 ? this._renderFlow(paths.homeToEv2, colors.ev, isEv2Charging, false, 'flow-home-ev2') : ''}
+            ${hasEV2 ? this._renderFlow(paths.homeToEv2, colors.ev2, isEv2Charging, false, 'flow-home-ev2') : ''}
           </svg>
 
           <!-- Solar Pill (Top - Roof) - Clickable for history -->
@@ -2879,13 +2919,13 @@ class PrismEnergyCard extends HTMLElement {
               </div>
               ${hasEV ? `
               <div class="detail-row">
-                <span class="detail-label">E-Auto 1</span>
+                <span class="detail-label">${this._config.ev_name}</span>
                 <span class="detail-val" style="color: ${isEvCharging ? colors.ev : 'rgba(255,255,255,0.4)'};">${isEvCharging ? this._formatPower(evPower) : this._t('idle')}</span>
               </div>
               ` : ''}
               ${hasEV2 ? `
               <div class="detail-row">
-                <span class="detail-label">E-Auto 2</span>
+                <span class="detail-label">${this._config.ev2_name}</span>
                 <span class="detail-val" style="color: ${isEv2Charging ? colors.ev : 'rgba(255,255,0,0.4)'};">${isEv2Charging ? this._formatPower(ev2Power) : this._t('idle')}</span>
               </div>
               ` : ''}
@@ -2909,7 +2949,7 @@ class PrismEnergyCard extends HTMLElement {
                 segments = `<div class="detail-fill-stack">`;
                 segments += `<div class="detail-fill-segment" style="flex-basis:${homeWidth}%;background:${colors.home}"></div>`;
                 if (hasEV && isEvCharging) segments += `<div class="detail-fill-segment" style="flex-basis:${evWidth}%;background:${colors.ev}"></div>`;
-                if (hasEV2 && isEv2Charging) segments += `<div class="detail-fill-segment" style="flex-basis:${ev2Width}%;background:${colors.ev}"></div>`;
+                if (hasEV2 && isEv2Charging) segments += `<div class="detail-fill-segment" style="flex-basis:${ev2Width}%;background:${colors.ev2}"></div>`;
                 segments += `</div>`;
                 
                 return segments;
